@@ -47,10 +47,20 @@ func main() {
 		// See if value starts with 'decrypt:'
 		if strings.HasPrefix(pair[1], "decrypt:") {
 			fmt.Println("Decrypting " + pair[0] + " ...")
-			cyphertext, err := base64.URLEncoding.DecodeString(strings.TrimPrefix(pair[1], "decrypt:"))
+			cyphertext, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(pair[1], "decrypt:"))
+			// cyphertext, err := base64.URLEncoding.DecodeString(strings.TrimPrefix(pair[1], "decrypt:"))
 			if err != nil {
-				log.Fatal(err)
+				// log.Fatal(err)
+				// log.Print(err)
+				cyphertext, err = base64.URLEncoding.DecodeString(strings.TrimPrefix(pair[1], "decrypt:"))
+				if err != nil {
+					log.Fatal(err)
+				}
+                                log.Print("DEBUG: URLEncoding")
 			}
+			fmt.Println()
+			fmt.Println("DEBUG: cyphertext")
+			fmt.Println(string(cyphertext))
 			// blob := []byte(string(cyphertext))
 			blob := cyphertext
 			// decrypt data
