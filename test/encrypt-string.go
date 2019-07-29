@@ -11,7 +11,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	// "strings"
+	"strings"
 	"syscall"
 )
 
@@ -42,7 +42,8 @@ func main() {
 	// KMS service client
 	svc := kms.New(sess)
 
-	text := `some-encrypted-string`
+	flag.Parse()
+	text := strings.Join(flag.Args(), "")
 
 	result, err := svc.Encrypt(&kms.EncryptInput{
 		KeyId: aws.String(cmk_arn),
