@@ -51,5 +51,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(base64.URLEncoding.EncodeToString(result.CiphertextBlob))
+	fmt.Println("decrypt:" + base64.StdEncoding.EncodeToString(result.CiphertextBlob))
 }
