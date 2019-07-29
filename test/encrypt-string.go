@@ -42,7 +42,7 @@ func main() {
 	// KMS service client
 	svc := kms.New(sess)
 
-	text := "some-encrypted-string"
+	text := `some-encrypted-string`
 
 	result, err := svc.Encrypt(&kms.EncryptInput{
 		KeyId: aws.String(cmk_arn),
