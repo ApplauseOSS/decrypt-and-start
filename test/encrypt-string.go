@@ -1,17 +1,16 @@
 package main
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
-
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/applauseoss/decrypt-and-start/lib"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
 	"log"
 	"os"
 	"os/exec"
-	// "strings"
 	"syscall"
 )
 
@@ -35,8 +34,9 @@ func main() {
 	// sess := session.Must(session.NewSessionWithOptions(session.Options{
 	//	SharedConfigState: session.SharedConfigEnable,
 	// }))
+	region := lib.GetRegion()
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String("us-east-1"),
+		Region: &region,
 	}))
 	cmk_arn := "arn:aws:kms:us-east-1:873559269338:key/1b03c937-31f8-4fa5-a5cf-42e9f437bda2"
 	// KMS service client
@@ -45,7 +45,7 @@ func main() {
 	text := "some-encrypted-string"
 
 	result, err := svc.Encrypt(&kms.EncryptInput{
-		KeyId: aws.String(cmk_arn),
+		KeyId:     aws.String(cmk_arn),
 		Plaintext: []byte(text),
 	})
 	if err != nil {
