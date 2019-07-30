@@ -58,12 +58,19 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-                                log.Print("DEBUG: URLEncoding")
+				log.Print("DEBUG: URLEncoding")
 			}
 			// blob := []byte(string(cyphertext))
 			blob := cyphertext
 			// decrypt data
-			result, err := svc.Decrypt(&kms.DecryptInput{CiphertextBlob: blob})
+			var enc_context map[string]*string
+			enc_context = make(map[string]*string)
+			pub_key := "A8Q2CiyHY56Fn6cXj/WphndYp51n9B3D1DBPb002ZZlj050OtjezWEzi0T72gM4kvA=="
+			enc_context["aws-crypto-public-key"] = &pub_key
+			result, err := svc.Decrypt(&kms.DecryptInput{
+				CiphertextBlob:    blob,
+				EncryptionContext: enc_context,
+			})
 			if err != nil {
 				log.Fatal(err)
 			}

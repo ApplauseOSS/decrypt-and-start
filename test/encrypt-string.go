@@ -45,7 +45,13 @@ func main() {
 	flag.Parse()
 	text := strings.Join(flag.Args(), "")
 
+	var enc_context map[string]*string
+	enc_context = make(map[string]*string)
+	pub_key := "A8Q2CiyHY56Fn6cXj/WphndYp51n9B3D1DBPb002ZZlj050OtjezWEzi0T72gM4kvA=="
+	enc_context["aws-crypto-public-key"] = &pub_key
+
 	result, err := svc.Encrypt(&kms.EncryptInput{
+		EncryptionContext: enc_context,
 		KeyId: aws.String(cmk_arn),
 		Plaintext: []byte(text),
 	})
