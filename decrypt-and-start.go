@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"github.com/applauseoss/decrypt-and-start/lib"
-	enc_sdk "github.com/applauseoss/decrypt-and-start/lib/aws_encryption_sdk"
 	"log"
 	"os"
 	"os/exec"
@@ -15,36 +13,49 @@ import (
 
 // This function should work like an entrypoint: exec "${@}"
 func Exec() {
-	flag.Parse()
-	if len(os.Args) == 1 {
+	args := flag.Args()
+	if len(args) == 0 {
 		return
 	}
-	cmd, err := exec.LookPath(os.Args[1])
+	cmd, err := exec.LookPath(args[0])
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := syscall.Exec(cmd, flag.Args(), os.Environ()); err != nil {
+	if err := syscall.Exec(cmd, args, os.Environ()); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func main() {
-	for _, e := range os.Environ() {
-		// e = each k=v pair/line, pair = split k = [0], v = [1] array
-		pair := strings.SplitN(e, "=", 2)
-		// See if value starts with 'decrypt:'
-		if strings.HasPrefix(pair[1], "decrypt:") {
-			fmt.Println("Decrypting the value of " + pair[0] + "...")
-			ciphertext, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(pair[1], "decrypt:"))
-			if err != nil {
-				log.Fatal(err)
+	var workerCount int
+	flag.IntVar(&workerCount, "p", 10, "number of parallel workers (defaults to 10)")
+	flag.Parse()
+	workerPool := lib.NewWorkerPool(workerCount)
+	workerPool.Start()
+	// Put encrypted env vars in queue for workers to process
+	go func() {
+		for _, e := range os.Environ() {
+			// e = each k=v pair/line, pair = split k = [0], v = [1] array
+			pair := strings.SplitN(e, "=", 2)
+			// See if value starts with 'decrypt:'
+			if strings.HasPrefix(pair[1], "decrypt:") {
+				env := &lib.EnvVar{Name: pair[0], Value: pair[1]}
+				workerPool.InChan <- env
+				fmt.Println("Decrypting the value of " + pair[0] + "...")
 			}
-			kms_helper := enc_sdk.NewKmsHelper(lib.GetRegion())
-			decrypted_value, err := kms_helper.Decrypt(ciphertext)
-			if err != nil {
-				log.Fatal(err)
-			}
-			os.Setenv(pair[0], string(decrypted_value))
+		}
+		// Close the input channel so workers know there's nothing left to process
+		close(workerPool.InChan)
+	}()
+	// Process decrypted values
+	for {
+		env, ok := <-workerPool.OutChan
+		if env != nil {
+			os.Setenv(env.Name, env.Value)
+		}
+		// If the output channel is closed, there are no more values to receive
+		if !ok {
+			break
 		}
 	}
 	Exec()
