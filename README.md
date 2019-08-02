@@ -14,4 +14,14 @@ encrypted environment variables passed into it.
 This project is a replacement for the ApplauseOSS/kms-encryption-toolbox
 supplied shell script, `decrypt-and-start`.
 
+It can be run as:
 
+```bash
+$ decrypt-and-start some other program
+```
+
+It can also take an optional flag to control the number of parallel workers:
+
+```bash
+$ decrypt-and-start -p 20 -- some other program
+```
