@@ -36,11 +36,11 @@ func (w *WorkerPool) Start() {
 				if env != nil {
 					ciphertext, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(env.Value, "decrypt:"))
 					if err != nil {
-						log.Fatal(err)
+						log.Fatalf("Error encountered while decrypting var '%s': %s", env.Name, err.Error())
 					}
 					decrypted_value, err := kmsHelper.Decrypt(ciphertext)
 					if err != nil {
-						log.Fatal(err)
+						log.Fatalf("Error encountered while decrypting var '%s': %s", env.Name, err.Error())
 					}
 					env.Value = string(decrypted_value)
 					w.OutChan <- env
