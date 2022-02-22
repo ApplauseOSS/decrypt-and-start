@@ -12,4 +12,4 @@
 *.out
 
 # output binary
-decrypt-and-start
+/decrypt-and-start
