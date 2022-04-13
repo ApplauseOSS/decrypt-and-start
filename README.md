@@ -25,3 +25,9 @@ It can also take an optional flag to control the number of parallel workers:
 ```bash
 $ decrypt-and-start -p 20 -- some other program
 ```
+
+Tool can also assume other role for kms access
+
+```bash
+$ decrypt-and-start --assume-role arn:aws:iam::XXXXXXXXX:role/YYYY some other program
+```

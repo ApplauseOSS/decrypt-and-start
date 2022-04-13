@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"golang.org/x/crypto/hkdf"
@@ -17,12 +18,17 @@ type KmsHelper struct {
 	client *kms.KMS
 }
 
-func NewKmsHelper(region string) *KmsHelper {
+func NewKmsHelper(region string, assumedRole string) *KmsHelper {
 	k := &KmsHelper{}
 	// Set up AWS KMS session
 	conf := aws.NewConfig().WithRegion(region)
 	sess := session.Must(session.NewSession(conf))
-	k.client = kms.New(sess)
+	if assumedRole != "" {
+		creds := stscreds.NewCredentials(sess, assumedRole)
+		k.client = kms.New(sess, &aws.Config{Credentials: creds})
+	} else {
+		k.client = kms.New(sess)
+	}
 	return k
 }
 
