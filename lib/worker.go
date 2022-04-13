@@ -27,10 +27,10 @@ func NewWorkerPool(count int) *WorkerPool {
 	return w
 }
 
-func (w *WorkerPool) Start() {
+func (w *WorkerPool) Start(assumedRole string) {
 	for i := 0; i < w.workerCount; i++ {
 		go func() {
-			kmsHelper := enc_sdk.NewKmsHelper(GetRegion())
+			kmsHelper := enc_sdk.NewKmsHelper(GetRegion(), assumedRole)
 			for {
 				env, ok := <-w.InChan
 				if env != nil {

@@ -28,10 +28,12 @@ func Exec() {
 
 func main() {
 	var workerCount int
+	var assumedRole string
 	flag.IntVar(&workerCount, "p", 10, "number of parallel workers (defaults to 10)")
+	flag.StringVar(&assumedRole, "assume-role", "", "Arn of role to assume for variables decryption")
 	flag.Parse()
 	workerPool := lib.NewWorkerPool(workerCount)
-	workerPool.Start()
+	workerPool.Start(assumedRole)
 	// Put encrypted env vars in queue for workers to process
 	go func() {
 		for _, e := range os.Environ() {
