@@ -2,7 +2,6 @@ package aws_encryption_sdk
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"log"
 )
@@ -62,27 +61,38 @@ func NewMessage() *Message {
 	return m
 }
 
-func (m *Message) DecodeEncContext(r io.Reader) {
+func (m *Message) DecodeEncContext(r io.Reader) error {
 	m.EncContext = make(map[string]string)
 	if m.EncContextLength > 0 {
 		var dictSize uint16
-		binary.Read(r, binary.BigEndian, &dictSize)
+		if err := binary.Read(r, binary.BigEndian, &dictSize); err != nil {
+			return err
+		}
 		var i uint16
 		for i = 0; i < dictSize; i++ {
 			var keyLength uint16
 			var valueLength uint16
-			binary.Read(r, binary.BigEndian, &keyLength)
+			if err := binary.Read(r, binary.BigEndian, &keyLength); err != nil {
+				return err
+			}
 			key := make([]byte, keyLength)
-			r.Read(key)
-			binary.Read(r, binary.BigEndian, &valueLength)
+			if _, err := r.Read(key); err != nil {
+				return err
+			}
+			if err := binary.Read(r, binary.BigEndian, &valueLength); err != nil {
+				return err
+			}
 			value := make([]byte, valueLength)
-			r.Read(value)
+			if _, err := r.Read(value); err != nil {
+				return err
+			}
 			m.EncContext[string(key)] = string(value)
 		}
 	}
+	return nil
 }
 
-func (m *Message) DecodeDataKeys(r io.Reader) {
+func (m *Message) DecodeDataKeys(r io.Reader) error {
 	m.EncDataKeys = make([]EncDataKey, 0)
 	if m.EncDataKeyCount > 0 {
 		var i uint16
@@ -90,21 +100,34 @@ func (m *Message) DecodeDataKeys(r io.Reader) {
 			var keyProviderIdLength uint16
 			var keyProviderInfoLength uint16
 			var encDataKeyLength uint16
-			binary.Read(r, binary.BigEndian, &keyProviderIdLength)
+			if err := binary.Read(r, binary.BigEndian, &keyProviderIdLength); err != nil {
+				return err
+			}
 			keyProviderId := make([]byte, keyProviderIdLength)
-			r.Read(keyProviderId)
-			binary.Read(r, binary.BigEndian, &keyProviderInfoLength)
+			if _, err := r.Read(keyProviderId); err != nil {
+				return err
+			}
+			if err := binary.Read(r, binary.BigEndian, &keyProviderInfoLength); err != nil {
+				return err
+			}
 			keyProviderInfo := make([]byte, keyProviderInfoLength)
-			r.Read(keyProviderInfo)
-			binary.Read(r, binary.BigEndian, &encDataKeyLength)
+			if _, err := r.Read(keyProviderInfo); err != nil {
+				return err
+			}
+			if err := binary.Read(r, binary.BigEndian, &encDataKeyLength); err != nil {
+				return err
+			}
 			encDataKey := make([]byte, encDataKeyLength)
-			r.Read(encDataKey)
+			if _, err := r.Read(encDataKey); err != nil {
+				return err
+			}
 			m.EncDataKeys = append(m.EncDataKeys, EncDataKey{ProviderId: string(keyProviderId), ProviderInfo: string(keyProviderInfo), EncKeyData: encDataKey})
 		}
 	}
+	return nil
 }
 
-func (m *Message) DecodeBody(r io.Reader) {
+func (m *Message) DecodeBody(r io.Reader) error {
 	m.Frames = make([]Frame, 0)
 	if m.ContentType == CONTENT_TYPE_NON_FRAMED {
 		// TODO: implement me
@@ -114,56 +137,89 @@ func (m *Message) DecodeBody(r io.Reader) {
 			var f Frame
 			f.IV = make([]byte, m.Algorithm.IVLength)
 			f.AuthTag = make([]byte, m.Algorithm.AuthTagLength)
-			binary.Read(r, binary.BigEndian, &seqNumber)
+			if err := binary.Read(r, binary.BigEndian, &seqNumber); err != nil {
+				return err
+			}
 			if seqNumber == SEQUENCE_NUMBER_END {
 				// Last frame
 				f.Final = true
-				binary.Read(r, binary.BigEndian, &f.SeqNumber)
-				r.Read(f.IV)
-				binary.Read(r, binary.BigEndian, &f.EncContentLength)
+				if err := binary.Read(r, binary.BigEndian, &f.SeqNumber); err != nil {
+					return err
+				}
+				if _, err := r.Read(f.IV); err != nil {
+					return err
+				}
+				if err := binary.Read(r, binary.BigEndian, &f.EncContentLength); err != nil {
+					return err
+				}
 				f.AADContentString = []byte(STRING_ID_FINAL_FRAME)
 			} else {
 				f.SeqNumber = seqNumber
-				r.Read(f.IV)
+				if _, err := r.Read(f.IV); err != nil {
+					return err
+				}
 				f.EncContentLength = m.FrameLength
 				f.AADContentString = []byte(STRING_ID_FRAME)
 			}
 			f.EncContent = make([]byte, f.EncContentLength)
-			r.Read(f.EncContent)
+			if _, err := r.Read(f.EncContent); err != nil {
+				return err
+			}
 			f.AuthTag = make([]byte, m.Algorithm.AuthTagLength)
-			r.Read(f.AuthTag)
+			if _, err := r.Read(f.AuthTag); err != nil {
+				return err
+			}
 			m.Frames = append(m.Frames, f)
 			if f.Final {
 				break
 			}
 		}
 	}
+	return nil
 }
 
-func (m *Message) Decode(r io.Reader) {
-	binary.Read(r, binary.BigEndian, &m.Version)
-	binary.Read(r, binary.BigEndian, &m.Type)
-	binary.Read(r, binary.BigEndian, &m.AlgorithmId)
-	binary.Read(r, binary.BigEndian, &m.MessageId)
-	binary.Read(r, binary.BigEndian, &m.EncContextLength)
-	m.DecodeEncContext(r)
-	binary.Read(r, binary.BigEndian, &m.EncDataKeyCount)
-	m.DecodeDataKeys(r)
-	binary.Read(r, binary.BigEndian, &m.ContentType)
-	binary.Read(r, binary.BigEndian, &m.Reserved)
-	binary.Read(r, binary.BigEndian, &m.IVLength)
-	binary.Read(r, binary.BigEndian, &m.FrameLength)
+func (m *Message) Decode(r io.Reader) error {
+	for _, varPtr := range []interface{}{&m.Version, &m.Type, &m.AlgorithmId, &m.MessageId, &m.EncContextLength} {
+		if err := binary.Read(r, binary.BigEndian, varPtr); err != nil {
+			return err
+		}
+	}
+	if err := m.DecodeEncContext(r); err != nil {
+		return err
+	}
+	if err := binary.Read(r, binary.BigEndian, &m.EncDataKeyCount); err != nil {
+		return err
+	}
+	if err := m.DecodeDataKeys(r); err != nil {
+		return err
+	}
+	for _, varPtr := range []interface{}{&m.ContentType, &m.Reserved, &m.IVLength, &m.FrameLength} {
+		if err := binary.Read(r, binary.BigEndian, varPtr); err != nil {
+			return err
+		}
+	}
 	m.Algorithm = lookupAlgorithm(m.AlgorithmId)
 	if m.Algorithm == nil {
-		log.Fatal(fmt.Sprintf("Unknown encryption algorithm with ID 0x%x", m.AlgorithmId))
+		log.Fatalf("Unknown encryption algorithm with ID 0x%x", m.AlgorithmId)
 	}
 	m.HeaderAuth.IV = make([]byte, m.Algorithm.IVLength)
 	m.HeaderAuth.AuthTag = make([]byte, m.Algorithm.AuthTagLength)
-	r.Read(m.HeaderAuth.IV)
-	r.Read(m.HeaderAuth.AuthTag)
-	m.DecodeBody(r)
+	if _, err := r.Read(m.HeaderAuth.IV); err != nil {
+		return err
+	}
+	if _, err := r.Read(m.HeaderAuth.AuthTag); err != nil {
+		return err
+	}
+	if err := m.DecodeBody(r); err != nil {
+		return err
+	}
 	// Footer
-	binary.Read(r, binary.BigEndian, &m.SignatureLength)
+	if err := binary.Read(r, binary.BigEndian, &m.SignatureLength); err != nil {
+		return err
+	}
 	m.Signature = make([]byte, m.SignatureLength)
-	r.Read(m.Signature)
+	if _, err := r.Read(m.Signature); err != nil {
+		return err
+	}
+	return nil
 }
