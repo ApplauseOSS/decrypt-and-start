@@ -6,12 +6,13 @@ import (
 	"crypto/cipher"
 	"encoding/binary"
 	"errors"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"golang.org/x/crypto/hkdf"
-	"strings"
 )
 
 type KmsHelper struct {
@@ -47,28 +48,42 @@ func (k *KmsHelper) decryptDataKeys(m *Message) ([][]byte, error) {
 }
 
 // Generate derived encryption key
-func (k *KmsHelper) getDerivedKey(key []byte, m *Message) []byte {
+func (k *KmsHelper) getDerivedKey(key []byte, m *Message) ([]byte, error) {
 	if m.Algorithm.HashFunc != nil {
 		info := bytes.NewBuffer(nil)
-		binary.Write(info, binary.BigEndian, m.Algorithm.Id)
-		info.Write(m.MessageId[:])
+		if err := binary.Write(info, binary.BigEndian, m.Algorithm.Id); err != nil {
+			return nil, err
+		}
+		if _, err := info.Write(m.MessageId[:]); err != nil {
+			return nil, err
+		}
 		tmp_hkdf := hkdf.New(m.Algorithm.HashFunc, key, nil, info.Bytes())
 		ret := make([]byte, m.Algorithm.DataKeyLength)
-		tmp_hkdf.Read(ret)
-		return ret
+		if _, err := tmp_hkdf.Read(ret); err != nil {
+			return nil, err
+		}
+		return ret, nil
 	} else {
-		return key
+		return key, nil
 	}
 }
 
 // Build additional data string for use in decryption
-func (k *KmsHelper) buildContentAAD(m *Message, f *Frame) []byte {
+func (k *KmsHelper) buildContentAAD(m *Message, f *Frame) ([]byte, error) {
 	ret := bytes.NewBuffer(nil)
-	ret.Write(m.MessageId[:])
-	ret.Write(f.AADContentString)
-	binary.Write(ret, binary.BigEndian, f.SeqNumber)
-	binary.Write(ret, binary.BigEndian, uint64(f.EncContentLength))
-	return ret.Bytes()
+	if _, err := ret.Write(m.MessageId[:]); err != nil {
+		return nil, err
+	}
+	if _, err := ret.Write(f.AADContentString); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(ret, binary.BigEndian, f.SeqNumber); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(ret, binary.BigEndian, uint64(f.EncContentLength)); err != nil {
+		return nil, err
+	}
+	return ret.Bytes(), nil
 }
 
 // Decrypt using KMS
@@ -108,7 +123,9 @@ func (k *KmsHelper) Decrypt(data []byte) ([]byte, error) {
 
 	r := bytes.NewReader(data)
 	message := NewMessage()
-	message.Decode(r)
+	if err := message.Decode(r); err != nil {
+		return nil, err
+	}
 	data_keys, err = k.decryptDataKeys(message)
 	if err != nil {
 		return nil, err
@@ -116,7 +133,10 @@ func (k *KmsHelper) Decrypt(data []byte) ([]byte, error) {
 	plaintext = make([]byte, 0)
 	for _, frame := range message.Frames {
 		// TODO: support multiple data keys
-		tmp_key := k.getDerivedKey(data_keys[0], message)
+		tmp_key, err := k.getDerivedKey(data_keys[0], message)
+		if err != nil {
+			return nil, err
+		}
 
 		var c cipher.Block
 		switch message.Algorithm.Type {
@@ -145,7 +165,11 @@ func (k *KmsHelper) Decrypt(data []byte) ([]byte, error) {
 		ciphertext = append(ciphertext, frame.AuthTag...)
 		nonce := frame.IV
 
-		frame_plaintext, err := mode.Open(nil, nonce, ciphertext, k.buildContentAAD(message, &frame))
+		contentAAD, err := k.buildContentAAD(message, &frame)
+		if err != nil {
+			return nil, err
+		}
+		frame_plaintext, err := mode.Open(nil, nonce, ciphertext, contentAAD)
 		if err != nil {
 			return nil, err
 		}
