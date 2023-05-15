@@ -11,7 +11,7 @@ GO_FILES=$(shell find $(ROOT_DIR) -name '*.go')
 $(BINARY): $(GO_FILES)
 	# Needed to fetch new dependencies and add them to go.mod
 	go mod tidy
-	go build -o $(BINARY) $(ROOT_DIR)
+	go build -ldflags="-s -w" -o $(BINARY) $(ROOT_DIR)
 
 .PHONY: build clean
 
