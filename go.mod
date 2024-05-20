@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/aws/aws-sdk-go v1.53.5
-	golang.org/x/crypto v0.22.0
+	golang.org/x/crypto v0.23.0
 )
 
 require github.com/jmespath/go-jmespath v0.4.0 // indirect
