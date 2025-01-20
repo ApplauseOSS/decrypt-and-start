@@ -3,7 +3,7 @@ module github.com/applauseoss/decrypt-and-start
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go v1.55.6
 	golang.org/x/crypto v0.32.0
 )
 
