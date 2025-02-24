@@ -1,6 +1,8 @@
 module github.com/applauseoss/decrypt-and-start
 
-go 1.21
+go 1.23
+
+toolchain go1.23.6
 
 require (
 	github.com/aws/aws-sdk-go v1.55.6
