@@ -146,7 +146,7 @@ func (k *KmsHelper) Decrypt(data []byte) ([]byte, error) {
 				return nil, err
 			}
 		default:
-			return nil, errors.New("Unknown encryption algorithm type")
+			return nil, errors.New("unknown encryption algorithm type")
 		}
 
 		var mode cipher.AEAD
@@ -157,7 +157,7 @@ func (k *KmsHelper) Decrypt(data []byte) ([]byte, error) {
 				return nil, err
 			}
 		default:
-			return nil, errors.New("Unknown encryption algorithm mode")
+			return nil, errors.New("unknown encryption algorithm mode")
 		}
 
 		ciphertext := frame.EncContent

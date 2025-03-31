@@ -53,7 +53,10 @@ func main() {
 	for {
 		env, ok := <-workerPool.OutChan
 		if env != nil {
-			os.Setenv(env.Name, env.Value)
+			err := os.Setenv(env.Name, env.Value)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		// If the output channel is closed, there are no more values to receive
 		if !ok {
