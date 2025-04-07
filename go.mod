@@ -6,7 +6,7 @@ toolchain go1.23.6
 
 require (
 	github.com/aws/aws-sdk-go v1.55.6
-	golang.org/x/crypto v0.36.0
+	golang.org/x/crypto v0.37.0
 )
 
 require github.com/jmespath/go-jmespath v0.4.0 // indirect
