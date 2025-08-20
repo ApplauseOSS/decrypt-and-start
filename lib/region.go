@@ -1,9 +1,11 @@
 package lib
 
 import (
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"context"
 	"os"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 )
 
 func GetRegion() string {
@@ -12,11 +14,14 @@ func GetRegion() string {
 		return region
 	}
 	// EC2 instance metadata
-	metaSession, _ := session.NewSession()
-	metaClient := ec2metadata.New(metaSession)
-	region, _ := metaClient.Region()
-	if region != "" {
-		return region
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err == nil {
+		metaClient := imds.NewFromConfig(cfg)
+		regionOut, err := metaClient.GetRegion(ctx, nil)
+		if err == nil && regionOut.Region != "" {
+			return regionOut.Region
+		}
 	}
 	// Sensible fallback
 	return "us-east-1"
