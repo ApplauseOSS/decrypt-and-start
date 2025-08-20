@@ -17,17 +17,17 @@ supplied shell script, `decrypt-and-start`.
 It can be run as:
 
 ```bash
-$ decrypt-and-start some other program
+decrypt-and-start some other program
 ```
 
 It can also take an optional flag to control the number of parallel workers:
 
 ```bash
-$ decrypt-and-start -p 20 -- some other program
+decrypt-and-start -p 20 -- some other program
 ```
 
 Tool can also assume other role for kms access
 
 ```bash
-$ decrypt-and-start --assume-role arn:aws:iam::XXXXXXXXX:role/YYYY some other program
+decrypt-and-start --assume-role arn:aws:iam::XXXXXXXXX:role/YYYY some other program
 ```

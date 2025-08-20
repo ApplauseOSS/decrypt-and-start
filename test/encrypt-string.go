@@ -1,17 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/applauseoss/decrypt-and-start/lib"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
 	"log"
 	"os"
 	"os/exec"
 	"syscall"
+
+	"github.com/applauseoss/decrypt-and-start/lib"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 )
 
 // This function should work like an entrypoint: exec "${@}"
@@ -30,26 +32,26 @@ func Exec() {
 }
 
 func main() {
-	// Initialize KMS session
-	// sess := session.Must(session.NewSessionWithOptions(session.Options{
-	//	SharedConfigState: session.SharedConfigEnable,
-	// }))
+	ctx := context.Background()
 	region := lib.GetRegion()
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: &region,
-	}))
-	cmk_arn := "arn:aws:kms:us-east-1:873559269338:key/1b03c937-31f8-4fa5-a5cf-42e9f437bda2"
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
 	// KMS service client
-	svc := kms.New(sess)
+	client := kms.NewFromConfig(cfg)
+	cmk_arn := "arn:aws:kms:us-east-1:873559269338:alias/dev-secret-encryption"
 
 	text := "some-encrypted-string"
+	// fmt.Println("Encrypting:", text)
 
-	result, err := svc.Encrypt(&kms.EncryptInput{
+	result, err := client.Encrypt(ctx, &kms.EncryptInput{
 		KeyId:     aws.String(cmk_arn),
 		Plaintext: []byte(text),
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(base64.URLEncoding.EncodeToString(result.CiphertextBlob))
+	fmt.Println(base64.StdEncoding.EncodeToString(result.CiphertextBlob))
 }

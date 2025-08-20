@@ -2,35 +2,71 @@ package aws_encryption_sdk
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
 	"errors"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"golang.org/x/crypto/hkdf"
 )
 
 type KmsHelper struct {
-	client *kms.KMS
+	client *kms.Client
 }
 
 func NewKmsHelper(region string, assumedRole string) *KmsHelper {
-	k := &KmsHelper{}
-	// Set up AWS KMS session
-	conf := aws.NewConfig().WithRegion(region)
-	sess := session.Must(session.NewSession(conf))
+	ctx := context.Background()
+	var cfg aws.Config
+	var err error
 	if assumedRole != "" {
-		creds := stscreds.NewCredentials(sess, assumedRole)
-		k.client = kms.New(sess, &aws.Config{Credentials: creds})
+		// Load default config
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+		if err != nil {
+			panic(err)
+		}
+		// Assume role
+		stsClient := sts.NewFromConfig(cfg)
+		resp, err := stsClient.AssumeRole(ctx, &sts.AssumeRoleInput{
+			RoleArn:         aws.String(assumedRole),
+			RoleSessionName: aws.String("decrypt-and-start-session"),
+		})
+		if err != nil {
+			panic(err)
+		}
+
+		// Get a new config with the assumed role credentials
+		var optFns []func(*config.LoadOptions) error
+		optFns = append(optFns, config.WithRegion(region))
+		optFns = append(optFns, config.WithCredentialsProvider(
+			aws.CredentialsProviderFunc(func(ctx context.Context) (aws.Credentials, error) {
+				return aws.Credentials{
+					AccessKeyID:     *resp.Credentials.AccessKeyId,
+					SecretAccessKey: *resp.Credentials.SecretAccessKey,
+					SessionToken:    *resp.Credentials.SessionToken,
+					CanExpire:       true,
+					Expires:         *resp.Credentials.Expiration,
+				}, nil
+			}),
+		))
+
+		newCfg, err := config.LoadDefaultConfig(ctx, optFns...)
+		if err != nil {
+			panic(err)
+		}
+		cfg = newCfg
 	} else {
-		k.client = kms.New(sess)
+		cfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+		if err != nil {
+			panic(err)
+		}
 	}
-	return k
+	return &KmsHelper{client: kms.NewFromConfig(cfg)}
 }
 
 // Decrypt encrypted data keys
@@ -88,17 +124,15 @@ func (k *KmsHelper) buildContentAAD(m *Message, f *Frame) ([]byte, error) {
 
 // Decrypt using KMS
 func (k *KmsHelper) kmsDecrypt(data []byte, m *Message) ([]byte, error) {
-	input := &kms.DecryptInput{
+	ctx := context.Background()
+	in := &kms.DecryptInput{
 		CiphertextBlob: data,
 	}
-	if m != nil {
-		context := make(map[string]*string)
-		for key, value := range m.EncContext {
-			context[key] = &value
-		}
-		input.EncryptionContext = context
+	if m != nil && len(m.EncContext) > 0 {
+		in.EncryptionContext = m.EncContext
 	}
-	result, err := k.client.Decrypt(input)
+
+	result, err := k.client.Decrypt(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +148,7 @@ func (k *KmsHelper) Decrypt(data []byte) ([]byte, error) {
 	// Try simple KMS decryption first
 	if plaintext, err = k.kmsDecrypt(data, nil); err == nil {
 		return plaintext, nil
-	} else if strings.HasPrefix(err.Error(), kms.ErrCodeInvalidCiphertextException) {
+	} else if strings.Contains(err.Error(), "InvalidCiphertextException") {
 		// Do nothing for an InvalidCiphertextException error
 	} else {
 		// Unknown error
