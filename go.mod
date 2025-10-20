@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/aws/aws-sdk-go-v2 v1.39.3
 	github.com/aws/aws-sdk-go-v2/config v1.31.12
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.9
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.10
 	github.com/aws/aws-sdk-go-v2/service/kms v1.46.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.7
 	golang.org/x/crypto v0.43.0
