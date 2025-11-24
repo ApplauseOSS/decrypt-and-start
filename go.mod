@@ -3,7 +3,7 @@ module github.com/applauseoss/decrypt-and-start
 go 1.25.0
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.39.6
+	github.com/aws/aws-sdk-go-v2 v1.40.0
 	github.com/aws/aws-sdk-go-v2/config v1.31.20
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.13
 	github.com/aws/aws-sdk-go-v2/service/kms v1.48.2
