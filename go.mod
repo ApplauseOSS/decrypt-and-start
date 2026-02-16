@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.17
 	github.com/aws/aws-sdk-go-v2/service/kms v1.49.5
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
-	golang.org/x/crypto v0.46.0
+	golang.org/x/crypto v0.48.0
 )
 
 require (
